@@ -83,6 +83,21 @@ def make_code_data_loader(tokenizer, batch_size=8):
     )
     return data_loader
 
+def make_ioi_data_loader(tokenizer, batch_size=8, version="200k"):
+    """
+    Evaluate on the fahamu/ioi dataset, for evaluating model behavior on the Indirect Object Identification task.
+    The HF repo contains two files: 200k samples, and 26 million samples.
+    """
+    ioi_data = load_dataset("fahamu/ioi", data_files={"200k": "mecha_ioi_200k.parquet", "26m": "mecha_ioi_26m.parquet"})
+    print(len(ioi_data))
+    dataset = utils.tokenize_and_concatenate(
+        ioi_data, tokenizer, column_name="ioi_sentences"
+    )
+    data_loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, drop_last=True
+    )
+    return data_loader
+
 
 DATASET_NAMES = ["wiki", "owt", "pile", "code"]
 DATASET_LOADERS = [
@@ -148,4 +163,21 @@ def evaluate(model, truncate=100, batch_size=8, tokenizer=None):
     return losses
 
 
+#%%
 # %%
+# TODO (@muhia - either avg logit diff, avg accuracy, or array of logit diffs)
+@torch.inference_mode()
+def logit_diff_on_dataset(model, data_loader, truncate=100, mean=False):
+    """
+    For evaluating models on the IOI task, which is to: predict the final token in the sentence to be the indirect object (IO).
+    We calculate the (mean) difference in logits between the correct prediction of the last token (IO) vs the wrong (S).
+    S1, S2 are the occurrences of the subject.
+    """
+    total = 0
+    for batch in tqdm.tqdm(data_loader):
+        logits = model(batch["tokens"].cuda(), return_type="logits").mean()
+        # implement logit diff here
+        total += 1
+        if total > truncate:
+            break
+    return 
